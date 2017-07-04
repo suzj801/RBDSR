@@ -357,11 +357,14 @@ class VDI:
         new_name = "%s/%s%s" % (self.sr.CEPH_POOL_NAME, VDI_PREFIX, vdi_uuid)
         util.pread2(["rbd", "mv", orig_name, new_name, "--name", self.sr.CEPH_USER])
 
-    def _rename_image(self, orig_uuid, new_uuid):
+    def _rename_image(self, orig_uuid, new_uuid, hidden=False):
+        "hidden vdi not shown in xencenter anymore"
         util.SMlog("Calling cephutils.VDI._rename_image: orig_uuid=%s, new_uuid=%s" % (orig_uuid, new_uuid))
         orig_name = "%s/%s%s" % (self.sr.CEPH_POOL_NAME, VDI_PREFIX, orig_uuid)
         new_name = "%s/%s%s" % (self.sr.CEPH_POOL_NAME, VDI_PREFIX, new_uuid)
         util.pread2(["rbd", "mv", orig_name, new_name, "--name", self.sr.CEPH_USER])
+        if hidden:
+            util.pread2(["rbd", "image-meta", "set", new_name, "VDI_HIDDEN", "1", "--pool", self.sr.CEPH_POOL_NAME, "--name", self.sr.CEPH_USER])
 
     def _do_clone(self, vdi_uuid, snap_uuid, clone_uuid, vdi_label):
         util.SMlog("Calling cephutils.VDI._do_clone: vdi_uuid=%s, snap_uuid=%s, clone_uuid=%s, vdi_label=%s" % (vdi_uuid, snap_uuid, clone_uuid, vdi_label))

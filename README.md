@@ -1,4 +1,17 @@
 # RBDSR - XenServer Storage Manager plugin for CEPH
+
+## 说明
+> 此分支基于[rposudnevskiy/RBDSR #7826d00](https://github.com/rposudnevskiy/RBDSR)
+
+## TODO:
+1. ~~SR scan优化~~
+2. ~~硬盘在删除时如果有快照存在, 此硬盘会被隐藏, 在xencenter中不可见~~
+3. 硬盘快照偶尔会出现snapshot-of不对应的情况, 暂时未找到出现的原因，未能重现问题
+4. gc方法, 目前scan未加入gc功能. 不加入gc的后果就是被隐藏的硬盘无法删除, managed为false的VDI不能调用destory方法
+5. 优化VDI.snapshot/VDI.clone方法
+
+
+## 具体使用方法
 This plugin adds support of Ceph block devices into XenServer.
 It supports creation of VDI as RBD device in Ceph pool.
 It uses Ceph snapshots and clones to handle VDI snapshots. It also supports Xapi Storage Migration (XSM) and XenServer High Availability (HA).

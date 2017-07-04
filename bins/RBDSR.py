@@ -75,7 +75,7 @@ class RBDSR(SR.SR, cephutils.SR):
             return False
     handles = staticmethod(handles)
 
-    def _loadvdis(self):
+    def _loadvdis_depre(self):
         util.SMlog("RBDSR._loadvdis")
         if self.vdis:
             return
@@ -175,6 +175,35 @@ class RBDSR(SR.SR, cephutils.SR):
                         self.session.xenapi.VDI.set_name_description(vdi_ref, description)
                         #self.session.xenapi.VDI.add_to_sm_config(vdi_ref, 'vdi_type', 'aio')
 
+    def _loadvdis(self):
+        util.SMlog("RBDSR._loadvdis")
+        if self.vdis:
+            return
+
+        self.RBDVDIs = self._get_vdilist(self.CEPH_POOL_NAME)
+
+        allocated_bytes = 0
+        vdi_uuids = self.RBDVDIs.keys()
+        for vdi_uuid in vdi_uuids:
+            if vdi_uuid in self.vdis:
+                continue
+            if 'snapshot' in self.RBDVDIs[vdi_uuid]:
+                # a snapshot of rbd
+                parent_vdi_uuid = self._get_vdi_uuid(self.RBDVDIs[vdi_uuid]['image'])
+                if parent_vdi_uuid not in self.vdis:
+                    if parent_vdi_uuid in vdi_uuids:
+                        self.vdis[parent_vdi_uuid] = RBDVDI(self, parent_vdi_uuid)
+                        if not self.vdis[parent_vdi_uuid].hidden:
+                            allocated_bytes += self.vdis[parent_vdi_uuid].size
+                    else:
+                        #?? raise erorr or ignore snapshots
+                        raise xs_errors.XenError('VDIUnavailable',
+                                                 opterr="VDI %s's parent %s not found" % (vdi_uuid, parent_vdi_uuid))
+            self.vdis[vdi_uuid] = RBDVDI(self, vdi_uuid)
+            if not self.vdis[vdi_uuid].hidden:
+                allocated_bytes += self.vdis[vdi_uuid].size
+        self.virtual_allocation = allocated_bytes
+
     def content_type(self, sr_uuid):
         """Returns the content_type XML"""
         return SR.SR.content_type(self, sr_uuid)
@@ -182,7 +211,7 @@ class RBDSR(SR.SR, cephutils.SR):
     def vdi(self, uuid):
         """Create a VDI class"""
         if not self.vdis.has_key(uuid):
-            self.vdis[uuid] = RBDVDI(self, uuid, '')
+            self.vdis[uuid] = RBDVDI(self, uuid)
         return self.vdis[uuid]
 
     def probe(self):
@@ -195,7 +224,7 @@ class RBDSR(SR.SR, cephutils.SR):
         self.provision = PROVISIONING_DEFAULT
         self.mode = MODE_DEFAULT
         self.use_rbd_meta = USE_RBD_META_DEFAULT
-        self.vdi_update_existing = VDI_UPDATE_EXISTING_DEFAULT
+        #self.vdi_update_existing = VDI_UPDATE_EXISTING_DEFAULT
         self.uuid = sr_uuid
         ceph_user = DEFAULT_CEPH_USER
         if self.dconf.has_key('cephx-id'):
@@ -208,8 +237,8 @@ class RBDSR(SR.SR, cephutils.SR):
         if self.dconf.has_key('use-rbd-meta'):
             self.use_rbd_meta = self.dconf['use-rbd-meta']
 
-        if self.dconf.has_key('vdi-update-existing'):
-            self.vdi_update_existing = self.dconf['vdi-update-existing']
+        #if self.dconf.has_key('vdi-update-existing'):
+        #    self.vdi_update_existing = self.dconf['vdi-update-existing']
 
         cephutils.SR.load(self,sr_uuid, ceph_user)
 
@@ -236,12 +265,14 @@ class RBDSR(SR.SR, cephutils.SR):
         self.physical_size = self.RBDPOOLs[sr_uuid]['stats']['max_avail'] + self.RBDPOOLs[sr_uuid]['stats']['bytes_used']
         self.physical_utilisation = self.RBDPOOLs[sr_uuid]['stats']['bytes_used']
 
-        self.virtual_allocation = self._get_allocated_size()
+        #self.virtual_allocation = self._get_allocated_size()
         self._loadvdis()
-        self._db_update()
-        scanrecord = SR.ScanRecord(self)
-        scanrecord.synchronise_existing()
-        scanrecord.synchronise_new()
+        #self._db_update()
+        #scanrecord = SR.ScanRecord(self)
+        #scanrecord.synchronise_existing()
+        #scanrecord.synchronise_new()
+        ## FIX ME: need gc
+        return SR.SR.scan(self, sr_uuid)
 
     def create(self, sr_uuid, size):
         util.SMlog("RBDSR.create: sr_uuid=%s, size=%s" % (sr_uuid, size))
@@ -271,19 +302,53 @@ class RBDVDI(VDI.VDI, cephutils.VDI):
         self.mode = self.sr.mode
         self.exists = False
         self.path = self.sr._get_path(vdi_uuid)
-        cephutils.VDI.load(self, vdi_uuid)
+        self.CEPH_VDI_NAME = "%s%s" % (cephutils.VDI_PREFIX, vdi_uuid)
 
-    def __init__(self, mysr, uuid, label):
+        if hasattr(self.sr, 'RBDVDIs') and vdi_uuid in self.sr.RBDVDIs:
+            if 'snapshot' in self.sr.RBDVDIs[vdi_uuid]:
+                parent_vdi_uuid = self.sr._get_vdi_uuid(self.sr.RBDVDIs[vdi_uuid]['image'])
+                parent_vdi_meta = self.sr._get_vdi_meta(parent_vdi_uuid)
+                self.parent = parent_vdi_uuid
+                self.size = self.utilisation = self.sr.RBDVDIs[parent_vdi_uuid]['size']
+                self.label = parent_vdi_meta.get('VDI_LABEL', '')
+                self.description = parent_vdi_meta.get('VDI_DESCRIPTION', '')
+                #snapshot never hide
+                self.issnap = True
+                self.is_a_snapshot = True
+                self.read_only = True
+                self.sm_config["vdi_type"] = 'aio'
+                self.sm_config['snapshot-of'] = self.parent
+                try:## FIX ME: parent may not in xapidb now
+                    self.snapshot_of = self.session.xenapi.VDI.get_by_uuid(self.parent)
+                except:
+                    pass
+                tag_snapshot_time = "%s%s" % (cephutils.SNAPSHOT_PREFIX, vdi_uuid)
+                if tag_snapshot_time in parent_vdi_meta:
+                    self.snapshot_time = parent_vdi_meta[tag_snapshot_time]
+            else:
+                vdi_meta = self.sr._get_vdi_meta(vdi_uuid)
+                self.size = self.utilisation = self.sr.RBDVDIs[vdi_uuid]['size']
+                self.label = vdi_meta.get('VDI_LABEL', '')
+                self.description = vdi_meta.get('VDI_DESCRIPTION', '')
+                self.hidden = vdi_meta.get('VDI_HIDDEN') == '1'
+                if self.hidden:
+                    self.read_only = True
+                    self.managed = False
+                self.sm_config["vdi_type"] = 'aio'
+        #else:
+        #    raise xs_errors.XenError('VDIUnavailable',
+        #                            opterr="VDI %s not found, maybe you need rescan the SR"%vdi_uuid)
+
+    def __init__(self, mysr, uuid):
         self.uuid = uuid
         self.location = uuid
-        VDI.VDI.__init__(self, mysr, uuid)
-        self.label = label
         self.vdi_type = 'aio'
         self.read_only = False
         self.shareable = False
         self.issnap = False
         self.hidden = False
         self.sm_config = {}
+        VDI.VDI.__init__(self, mysr, uuid)
 
     def create(self, sr_uuid, vdi_uuid, size):
         util.SMlog("RBDVDI.create: sr_uuid=%s, vdi_uuid=%s, size=%s" % (sr_uuid, vdi_uuid, size))
@@ -346,6 +411,7 @@ class RBDVDI(VDI.VDI, cephutils.VDI):
                 raise xs_errors.XenError('VDIUnavailable', opterr='Could not find image %s in pool %s' % (vdi_uuid, sr_uuid))
 
     def delete(self, sr_uuid, vdi_uuid):
+        "FIX ME: After snapshot delete, base file need delete. Place it in gc progress"
         util.SMlog("RBDVDI.delete: sr_uuid=%s, vdi_uuid=%s" % (sr_uuid, vdi_uuid))
 
         vdis = self.session.xenapi.SR.get_VDIs(self.sr.sr_ref)
@@ -370,7 +436,7 @@ class RBDVDI(VDI.VDI, cephutils.VDI):
             new_uuid = util.gen_uuid()
             self.snaps = self.session.xenapi.VDI.get_snapshots(self_vdi_ref)
             # renaming base image
-            self._rename_image(vdi_uuid, new_uuid)
+            self._rename_image(vdi_uuid, new_uuid, True)
             for snap in self.snaps:
                 util.SMlog("RBDVDI.delete set rollback for %s" % self.session.xenapi.VDI.get_uuid(snap))
                 self.session.xenapi.VDI.add_to_sm_config(snap, 'new_uuid', new_uuid)
@@ -393,9 +459,9 @@ class RBDVDI(VDI.VDI, cephutils.VDI):
                     self._delete_snapshot(self_sm_config["snapshot-of"], vdi_uuid)
             else:
                 self._delete_vdi(vdi_uuid)
-            self.size = int(self.session.xenapi.VDI.get_virtual_size(self_vdi_ref))
-            self.sr._updateStats(self.sr.uuid, -self.size)
-            self._db_forget()
+        self.size = int(self.session.xenapi.VDI.get_virtual_size(self_vdi_ref))
+        self.sr._updateStats(self.sr.uuid, -self.size)
+        self._db_forget()
 
     def attach(self, sr_uuid, vdi_uuid):
         util.SMlog("RBDVDI.attach: sr_uuid=%s, vdi_uuid=%s" % (sr_uuid, vdi_uuid))
@@ -505,7 +571,8 @@ class RBDVDI(VDI.VDI, cephutils.VDI):
                 new_uuid = snap_sm_config["new_uuid"]
                 self._rollback_snapshot(new_uuid, snap_uuid)
 
-                baseVDI = RBDVDI(self.sr, new_uuid, self.session.xenapi.VDI.get_name_label(snap_vdi_ref))
+                baseVDI = RBDVDI(self.sr, new_uuid)
+                baseVDI.label = self.session.xenapi.VDI.get_name_label(snap_vdi_ref)
                 baseVDI.path = self.sr._get_path(new_uuid)
                 baseVDI.location = baseVDI.uuid
                 baseVDI.size = self.session.xenapi.VDI.get_virtual_size(snap_vdi_ref)
@@ -538,7 +605,8 @@ class RBDVDI(VDI.VDI, cephutils.VDI):
 
             clone_uuid = util.gen_uuid()
 
-            cloneVDI = RBDVDI(self.sr, clone_uuid, base_vdi_label)
+            cloneVDI = RBDVDI(self.sr, clone_uuid)
+            cloneVDI.label = base_vdi_label
             self._do_clone(base_uuid, snap_uuid, clone_uuid, base_vdi_label)
 
             cloneVDI.path = self.sr._get_path(clone_uuid)
@@ -577,7 +645,8 @@ class RBDVDI(VDI.VDI, cephutils.VDI):
         else:
             orig_label = ''
 
-        snapVDI = RBDVDI(self.sr, snap_uuid, "%s%s" % (orig_label, " (snapshot)"))
+        snapVDI = RBDVDI(self.sr, snap_uuid)
+        snapVDI.label = "%s%s" % (orig_label, " (snapshot)")
         self._do_snapshot(base_uuid, snap_uuid)
 
         #snapVDI.path = self.sr._get_snap_path(base_uuid, snap_uuid)
