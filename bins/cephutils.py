@@ -66,7 +66,7 @@ class SR:
         util.SMlog("Calling cephutils.SR._get_vdi_info: vdi_uuid=%s" % vdi_uuid)
         VDI_NAME = "%s%s" % (VDI_PREFIX, vdi_uuid)
         if self.use_rbd_meta:
-            cmdout = util.pread2(["rbd", "image-meta", "list", VDI_NAME, "--pool", self.CEPH_POOL_NAME, "--format", "json", "--name", self.CEPH_USER])
+            cmdout = util.pread2(["rbd", "image-meta", "list", VDI_NAME, "--pool", self.CEPH_POOL_NAME, "--format", "json"])
             if len(cmdout) != 0:
                 decoded = json.loads(cmdout)
                 return decoded
@@ -78,7 +78,7 @@ class SR:
     def _get_vdilist(self, pool):
         util.SMlog("Calling cephutils.SR._get_vdilist: pool=%s" % pool)
         RBDVDIs = {}
-        cmd = ["rbd", "ls", "-l", "--format", "json", "--pool", pool, "--name", self.CEPH_USER]
+        cmd = ["rbd", "ls", "-l", "--format", "json", "--pool", pool]
         cmdout = util.pread2(cmd)
         decoded = json.loads(cmdout)
         for vdi in decoded:
@@ -170,7 +170,7 @@ class SR:
         util.SMlog("Calling cephutils.SR._get_srlist")
         RBDPOOLs = {}
 
-        cmdout = util.pread2(["ceph", "df", "--format", "json", "--name", self.CEPH_USER])
+        cmdout = util.pread2(["ceph", "df", "--format", "json"])
         decoded = json.loads(cmdout)
         for poolinfo in decoded['pools']:
             regex = re.compile(RBDPOOL_PREFIX)
@@ -249,12 +249,12 @@ class VDI:
         util.SMlog("Calling cephutils.VDI.create: sr_uuid=%s, vdi_uuid=%s, size=%sMB" % (sr_uuid, vdi_uuid, image_size_M))
         # image_size_M = (size + OBJECT_SIZE_IN_B)/ 1024 / 1024
         # before JEWEL: util.pread2(["rbd", "create", self.CEPH_VDI_NAME, "--size", str(image_size), "--order", str(BLOCK_SIZE), "--image-format", str(IMAGE_FORMAT), "--pool", self.sr.CEPH_POOL_NAME, "--name", self.sr.CEPH_USER])
-        util.pread2(["rbd", "create", self.CEPH_VDI_NAME, "--size", str(image_size_M), "--object-size", str(OBJECT_SIZE_IN_B), "--image-format", str(IMAGE_FORMAT), "--pool", self.sr.CEPH_POOL_NAME, "--name", self.sr.CEPH_USER])
+        util.pread2(["rbd", "create", self.CEPH_VDI_NAME, "--size", str(image_size_M), "--object-size", str(OBJECT_SIZE_IN_B), "--image-format", str(IMAGE_FORMAT), "--pool", self.sr.CEPH_POOL_NAME])
         if self.sr.use_rbd_meta:
             if self.label:
-                util.pread2(["rbd", "image-meta", "set", self.CEPH_VDI_NAME, "VDI_LABEL", self.label, "--pool", self.sr.CEPH_POOL_NAME, "--name", self.sr.CEPH_USER])
+                util.pread2(["rbd", "image-meta", "set", self.CEPH_VDI_NAME, "VDI_LABEL", self.label, "--pool", self.sr.CEPH_POOL_NAME])
             if self.description:
-                util.pread2(["rbd", "image-meta", "set", self.CEPH_VDI_NAME, "VDI_DESCRIPTION", self.description, "--pool", self.sr.CEPH_POOL_NAME, "--name", self.sr.CEPH_USER])
+                util.pread2(["rbd", "image-meta", "set", self.CEPH_VDI_NAME, "VDI_DESCRIPTION", self.description, "--pool", self.sr.CEPH_POOL_NAME])
 
     def resize(self, sr_uuid, vdi_uuid, image_size_M):
         util.SMlog("Calling cephutils.VDI.resize: sr_uuid=%s, vdi_uuid=%s, size=%sMB" % (sr_uuid, vdi_uuid, image_size_M))
@@ -267,7 +267,7 @@ class VDI:
             self.__unmap_VHD(vdi_uuid)
         #---
         ##image_size = size / 1024 / 1024
-        util.pread2(["rbd", "resize", "--size", str(image_size_M), "--allow-shrink", self.CEPH_VDI_NAME, "--pool", self.sr.CEPH_POOL_NAME, "--name", self.sr.CEPH_USER])
+        util.pread2(["rbd", "resize", "--size", str(image_size_M), "--allow-shrink", self.CEPH_VDI_NAME, "--pool", self.sr.CEPH_POOL_NAME])
         #---
         if sm_config.has_key('attached') and not sm_config.has_key('paused'):
             self.__map_VHD(vdi_uuid)
@@ -285,12 +285,12 @@ class VDI:
                 self.__unmap_VHD(vdi_uuid)
 
             if self.label:
-                util.pread2(["rbd", "image-meta", "set", vdi_name, "VDI_LABEL", self.label, "--pool", self.sr.CEPH_POOL_NAME, "--name", self.sr.CEPH_USER])
+                util.pread2(["rbd", "image-meta", "set", vdi_name, "VDI_LABEL", self.label, "--pool", self.sr.CEPH_POOL_NAME])
             if self.description:
-                util.pread2(["rbd", "image-meta", "set", vdi_name, "VDI_DESCRIPTION", self.description, "--pool", self.sr.CEPH_POOL_NAME, "--name", self.sr.CEPH_USER])
+                util.pread2(["rbd", "image-meta", "set", vdi_name, "VDI_DESCRIPTION", self.description, "--pool", self.sr.CEPH_POOL_NAME])
             for snapshot_uuid in self.snaps.keys():
                 snapshot_name = "%s%s" % (SNAPSHOT_PREFIX, snapshot_uuid)
-                util.pread2(["rbd", "image-meta", "set", vdi_name, snapshot_name, str(self.snaps[snapshot_uuid]), "--pool",self.sr.CEPH_POOL_NAME, "--name", self.sr.CEPH_USER])
+                util.pread2(["rbd", "image-meta", "set", vdi_name, snapshot_name, str(self.snaps[snapshot_uuid]), "--pool",self.sr.CEPH_POOL_NAME])
 
             if sm_config.has_key('attached') and not sm_config.has_key('paused'):
                 self.__map_VHD(vdi_uuid)
@@ -307,7 +307,7 @@ class VDI:
             self.__unmap_VHD(clone_uuid)
         #--- ?????? CHECK For running VM. What if flattening takes a long time and vdi is paused during this process
         clone_name = "%s/%s%s" % (self.sr.CEPH_POOL_NAME, CLONE_PREFIX, clone_uuid)
-        util.pread2(["rbd", "flatten", clone_name, "--name", self.sr.CEPH_USER])
+        util.pread2(["rbd", "flatten", clone_name])
         #--- ??????
         if sm_config.has_key('attached') and not sm_config.has_key('paused'):
             self.__map_VHD(clone_uuid)
@@ -318,17 +318,20 @@ class VDI:
         vdi_name = "%s%s" % (VDI_PREFIX, vdi_uuid)
         snapshot_name = "%s@%s%s" % (vdi_name, SNAPSHOT_PREFIX, snap_uuid)
         short_snap_name = "%s%s" % (SNAPSHOT_PREFIX, snap_uuid)
-        vdi_ref = self.session.xenapi.VDI.get_by_uuid(vdi_uuid)
-        sm_config = self.session.xenapi.VDI.get_sm_config(vdi_ref)
+        try:
+            vdi_ref = self.session.xenapi.VDI.get_by_uuid(vdi_uuid)
+            sm_config = self.session.xenapi.VDI.get_sm_config(vdi_ref)
+        except:
+            sm_config = {}
         if sm_config.has_key('attached') and not sm_config.has_key('paused'):
             if not blktap2.VDI.tap_pause(self.session, self.sr.uuid, vdi_uuid):
                 raise util.SMException("failed to pause VDI %s" % vdi_uuid)
             self.__unmap_VHD(vdi_uuid)
         #---
-        util.pread2(["rbd", "snap", "unprotect", snapshot_name, "--pool", self.sr.CEPH_POOL_NAME, "--name", self.sr.CEPH_USER])
-        util.pread2(["rbd", "snap", "rm", snapshot_name, "--pool", self.sr.CEPH_POOL_NAME, "--name", self.sr.CEPH_USER])
+        util.pread2(["rbd", "snap", "unprotect", snapshot_name, "--pool", self.sr.CEPH_POOL_NAME])
+        util.pread2(["rbd", "snap", "rm", snapshot_name, "--pool", self.sr.CEPH_POOL_NAME])
         if self.sr.use_rbd_meta:
-            util.pread2(["rbd", "image-meta", "remove", vdi_name, short_snap_name, "--pool", self.sr.CEPH_POOL_NAME, "--name", self.sr.CEPH_USER])
+            util.pread2(["rbd", "image-meta", "remove", vdi_name, short_snap_name, "--pool", self.sr.CEPH_POOL_NAME])
         #---
         if sm_config.has_key('attached') and not sm_config.has_key('paused'):
             self.__map_VHD(vdi_uuid)
@@ -339,32 +342,34 @@ class VDI:
         vdi_name = "%s%s" % (VDI_PREFIX, vdi_uuid)
         fuse_vdi_path = "%s/%s%s" % (self.sr.DEV_ROOT, VDI_PREFIX, vdi_uuid)
         if self.mode == "kernel":
-            util.pread2(["rbd", "rm", vdi_name, "--pool", self.sr.CEPH_POOL_NAME, "--name", self.sr.CEPH_USER])
+            util.pread2(["rbd", "rm", vdi_name, "--pool", self.sr.CEPH_POOL_NAME])
         elif self.mode == "fuse":
             util.pread2(["rm", "-f", fuse_vdi_path])
         elif self.mode == "nbd":
-            util.pread2(["rbd", "rm", vdi_name, "--pool", self.sr.CEPH_POOL_NAME, "--name", self.sr.CEPH_USER])
+            util.pread2(["rbd", "rm", vdi_name, "--pool", self.sr.CEPH_POOL_NAME])
 
     def _change_image_prefix_to_SXM(self, vdi_uuid):
         util.SMlog("Calling cephutils.VDI._change_image_prefix_to_SXM: vdi_uuid=%s" % vdi_uuid)
         orig_name = "%s/%s%s" % (self.sr.CEPH_POOL_NAME, VDI_PREFIX, vdi_uuid)
         new_name = "%s/%s%s" % (self.sr.CEPH_POOL_NAME, SXM_PREFIX, vdi_uuid)
-        util.pread2(["rbd", "mv", orig_name, new_name, "--name", self.sr.CEPH_USER])
+        util.pread2(["rbd", "mv", orig_name, new_name])
 
     def _change_image_prefix_to_VHD(self, vdi_uuid):
         util.SMlog("Calling cephutils.VDI._change_image_prefix_to_VHD: vdi_uuid=%s" % vdi_uuid)
         orig_name = "%s/%s%s" % (self.sr.CEPH_POOL_NAME, SXM_PREFIX, vdi_uuid)
         new_name = "%s/%s%s" % (self.sr.CEPH_POOL_NAME, VDI_PREFIX, vdi_uuid)
-        util.pread2(["rbd", "mv", orig_name, new_name, "--name", self.sr.CEPH_USER])
+        util.pread2(["rbd", "mv", orig_name, new_name])
 
-    def _rename_image(self, orig_uuid, new_uuid, hidden=False):
-        "hidden vdi not shown in xencenter anymore"
+    def _rename_image(self, orig_uuid, new_uuid):
         util.SMlog("Calling cephutils.VDI._rename_image: orig_uuid=%s, new_uuid=%s" % (orig_uuid, new_uuid))
         orig_name = "%s/%s%s" % (self.sr.CEPH_POOL_NAME, VDI_PREFIX, orig_uuid)
         new_name = "%s/%s%s" % (self.sr.CEPH_POOL_NAME, VDI_PREFIX, new_uuid)
-        util.pread2(["rbd", "mv", orig_name, new_name, "--name", self.sr.CEPH_USER])
-        if hidden:
-            util.pread2(["rbd", "image-meta", "set", new_name, "VDI_HIDDEN", "1", "--pool", self.sr.CEPH_POOL_NAME, "--name", self.sr.CEPH_USER])
+        util.pread2(["rbd", "mv", orig_name, new_name])
+
+    def _hide_image(self, vdi_uuid):
+        util.SMlog("Calling cephutils.VDI._hide_image: vdi_uuid=%s" % vdi_uuid)
+        vdi_name = "%s%s" % (VDI_PREFIX, vdi_uuid)
+        util.pread2(["rbd", "image-meta", "set", vdi_name, "VDI_HIDDEN", "1", "--pool", self.sr.CEPH_POOL_NAME])
 
     def _do_clone(self, vdi_uuid, snap_uuid, clone_uuid, vdi_label):
         util.SMlog("Calling cephutils.VDI._do_clone: vdi_uuid=%s, snap_uuid=%s, clone_uuid=%s, vdi_label=%s" % (vdi_uuid, snap_uuid, clone_uuid, vdi_label))
@@ -378,10 +383,10 @@ class VDI:
                 raise util.SMException("failed to pause VDI %s" % vdi_uuid)
             self.__unmap_VHD(vdi_uuid)
         #---
-        util.pread2(["rbd", "clone", snapshot_name, clone_name, "--name", self.sr.CEPH_USER])
+        util.pread2(["rbd", "clone", snapshot_name, clone_name])
         if self.sr.use_rbd_meta:
-            util.pread2(["rbd", "image-meta", "set", clone_name, "VDI_LABEL", vdi_label, "--pool", self.sr.CEPH_POOL_NAME, "--name", self.sr.CEPH_USER])
-            util.pread2(["rbd", "image-meta", "set", clone_name, "CLONE_OF", snap_uuid, "--pool", self.sr.CEPH_POOL_NAME, "--name", self.sr.CEPH_USER])
+            util.pread2(["rbd", "image-meta", "set", clone_name, "VDI_LABEL", vdi_label, "--pool", self.sr.CEPH_POOL_NAME])
+            util.pread2(["rbd", "image-meta", "set", clone_name, "CLONE_OF", snap_uuid, "--pool", self.sr.CEPH_POOL_NAME])
         #---
         if sm_config.has_key('attached') and not sm_config.has_key('paused'):
             self.__map_VHD(vdi_uuid)
@@ -398,8 +403,8 @@ class VDI:
                 raise util.SMException("failed to pause VDI %s" % vdi_uuid)
             self.__unmap_VHD(vdi_uuid)
         #---
-        util.pread2(["rbd", "snap", "create", snapshot_name, "--pool", self.sr.CEPH_POOL_NAME, "--name", self.sr.CEPH_USER])
-        util.pread2(["rbd", "snap", "protect", snapshot_name, "--pool", self.sr.CEPH_POOL_NAME, "--name", self.sr.CEPH_USER])
+        util.pread2(["rbd", "snap", "create", snapshot_name, "--pool", self.sr.CEPH_POOL_NAME])
+        util.pread2(["rbd", "snap", "protect", snapshot_name, "--pool", self.sr.CEPH_POOL_NAME])
         #---
         if sm_config.has_key('attached') and not sm_config.has_key('paused'):
             self.__map_VHD(vdi_uuid)
@@ -409,13 +414,13 @@ class VDI:
         util.SMlog("Calling cephutils.VDI._rollback_snapshot: base_uuid=%s, snap_uuid=%s" % (base_uuid, snap_uuid))
         vdi_name = "%s%s" % (VDI_PREFIX, base_uuid)
         snapshot_name = "%s@%s%s" % (vdi_name, SNAPSHOT_PREFIX, snap_uuid)
-        util.pread2(["rbd", "snap", "rollback", snapshot_name, "--pool", self.sr.CEPH_POOL_NAME, "--name", self.sr.CEPH_USER])
+        util.pread2(["rbd", "snap", "rollback", snapshot_name, "--pool", self.sr.CEPH_POOL_NAME])
 
     def _get_vdi_meta(self, vdi_uuid):
         util.SMlog("Calling cephutils.VDI._get_vdi_meta: vdi_uuid=%s" % vdi_uuid)
         vdi_name = "%s%s" % (VDI_PREFIX, vdi_uuid)
         if self.sr.use_rbd_meta:
-            cmdout = util.pread2(["rbd", "image-meta", "list", vdi_name, "--pool", self.sr.CEPH_POOL_NAME, "--format", "json", "--name", self.sr.CEPH_USER])
+            cmdout = util.pread2(["rbd", "image-meta", "list", vdi_name, "--pool", self.sr.CEPH_POOL_NAME, "--format", "json"])
             if len(cmdout) != 0:
                 decoded = json.loads(cmdout)
                 return decoded
@@ -428,7 +433,7 @@ class VDI:
         util.SMlog("Calling cephutils.VDI._get_vdi_info: vdi_uuid=%s" % vdi_uuid)
         vdi_name = "%s%s" % (VDI_PREFIX, vdi_uuid)
         if self.sr.use_rbd_meta:
-            cmdout = util.pread2(["rbd", "info", vdi_name, "--pool", self.sr.CEPH_POOL_NAME, "--format", "json", "--name", self.sr.CEPH_USER])
+            cmdout = util.pread2(["rbd", "info", vdi_name, "--pool", self.sr.CEPH_POOL_NAME, "--format", "json"])
             if len(cmdout) != 0:
                 decoded = json.loads(cmdout)
                 return decoded
@@ -441,7 +446,7 @@ class VDI:
         util.SMlog("Calling cephutils.VDI._if_vdi_exist: vdi_uuid=%s" % vdi_uuid)
         vdi_name = "%s%s" % (VDI_PREFIX, vdi_uuid)
         try:
-            cmdout = util.pread2(["rbd", "info", vdi_name, "--pool", self.sr.CEPH_POOL_NAME, "--format", "json", "--name", self.sr.CEPH_USER])
+            cmdout = util.pread2(["rbd", "info", vdi_name, "--pool", self.sr.CEPH_POOL_NAME, "--format", "json"])
             return True
         except Exception:
             return False
@@ -477,9 +482,11 @@ class VDI:
         vdi_ref = self.session.xenapi.VDI.get_by_uuid(vdi_uuid)
         sm_config = self.session.xenapi.VDI.get_sm_config(vdi_ref)
         if sm_config.has_key("dm"):
-            dm=sm_config["dm"]
+            dm = sm_config["dm"]
         else:
-            dm="none"
+            dm = "none"
+
+        dev = sm_config.get("dev_instance", "")
 
         if self.session.xenapi.VDI.get_sharable(vdi_ref):
             sharable="true"
@@ -494,7 +501,7 @@ class VDI:
                 "CEPH_POOL_NAME":self.sr.CEPH_POOL_NAME,
                 "NBDS_MAX":str(NBDS_MAX),
                 "CEPH_USER":self.sr.CEPH_USER,"sharable":sharable,
-                "dm":dm}
+                "dm":dm, "dev":dev}
         self._call_plugin('_map',args)
 
     def __unmap_VHD(self, vdi_uuid):
@@ -535,6 +542,8 @@ class VDI:
         dev_name = "%s/%s" % (self.sr.SR_ROOT, vdi_name)
 
         vdi_ref = self.session.xenapi.VDI.get_by_uuid(vdi_uuid)
+        sm_config = self.session.xenapi.VDI.get_sm_config(vdi_ref)
+        dev = sm_config.get("dev_instance", "")
 
         if self.session.xenapi.VDI.get_sharable(vdi_ref):
             sharable="true"
@@ -550,7 +559,7 @@ class VDI:
                 "CEPH_POOL_NAME":self.sr.CEPH_POOL_NAME,
                 "NBDS_MAX":str(NBDS_MAX),
                 "CEPH_USER":self.sr.CEPH_USER,"sharable":sharable,
-                "dm":dm,
+                "dm":dm, "dev":dev,
                 "size":str(size)}
         self._call_plugin('map',args)
         self.session.xenapi.VDI.add_to_sm_config(vdi_ref, 'dm', dm)
@@ -599,6 +608,8 @@ class VDI:
         dev_name = "%s/%s" % (self.sr.SR_ROOT, vdi_name)
 
         snap_ref = self.session.xenapi.VDI.get_by_uuid(snap_uuid)
+        sm_config = self.session.xenapi.VDI.get_sm_config(snap_ref)
+        dev = sm_config.get("dev_instance", "")
 
         if self.session.xenapi.VDI.get_sharable(snap_ref):
             sharable="true"
@@ -615,7 +626,7 @@ class VDI:
                 "CEPH_POOL_NAME":self.sr.CEPH_POOL_NAME,
                 "NBDS_MAX":str(NBDS_MAX),
                 "CEPH_USER":self.sr.CEPH_USER,"sharable":sharable,
-                "dm":dm,
+                "dm":dm, "dev":dev,
                 "size":str(size)}
         self._call_plugin('map',args)
         self.session.xenapi.VDI.add_to_sm_config(snap_ref, 'dm', dm)
@@ -665,7 +676,10 @@ class VDI:
         dev_name = "%s/%s" % (self.sr.SR_ROOT, vdi_name)
 
         vdi_ref = self.session.xenapi.VDI.get_by_uuid(vdi_uuid)
+        sm_config = self.session.xenapi.VDI.get_sm_config(vdi_ref)
         dm="mirror"
+        dev = sm_config.get("dev_instance", "")
+
         if self.session.xenapi.VDI.get_sharable(vdi_ref):
             sharable="true"
         else:
@@ -680,7 +694,7 @@ class VDI:
                 "CEPH_POOL_NAME":self.sr.CEPH_POOL_NAME,
                 "NBDS_MAX":str(NBDS_MAX),
                 "CEPH_USER":self.sr.CEPH_USER,"sharable":sharable,
-                "dm":dm,
+                "dm":dm, "dev":dev,
                 "size":str(size)}
         self._call_plugin('map',args)
         self.session.xenapi.VDI.add_to_sm_config(vdi_ref, 'dm', dm)
@@ -709,7 +723,7 @@ class VDI:
                 "CEPH_POOL_NAME":self.sr.CEPH_POOL_NAME,
                 "NBDS_MAX":str(NBDS_MAX),
                 "CEPH_USER":self.sr.CEPH_USER,"sharable":sharable,
-                "dm":"mirror",
+                "dm":dm,
                 "size":str(size)}
         self._call_plugin('unmap',args)
         self.session.xenapi.VDI.remove_from_sm_config(vdi_ref, 'dm')
@@ -723,7 +737,32 @@ class VDI:
         dev_name = "%s/%s" % (self.sr.SR_ROOT, vdi_name)
 
         vdi_ref = self.session.xenapi.VDI.get_by_uuid(vdi_uuid)
+        sm_config = self.session.xenapi.VDI.get_sm_config(vdi_ref)
+        sr_sm_config = self.session.xenapi.SR.get_sm_config(self.sr.sr_ref)
         dm="base"
+
+        if sr_sm_config.has_key("dev_instances"):
+            sr_dev_instances = json.loads(sr_sm_config["dev_instances"])
+        else:
+            sr_dev_instances={"hosts":{}}
+
+        first_free_instance = -1
+        host_uuid = inventory.get_localhost_uuid()
+        if sr_dev_instances["hosts"].has_key(host_uuid):
+            for i in range(NBDS_MAX):
+                if sr_dev_instances["hosts"][host_uuid][i] == None:
+                    first_free_instance = i
+                    break
+            sr_dev_instances["hosts"][host_uuid][first_free_instance] = vdi_uuid
+        else:
+            #sr_dev_instances["hosts"].append({host_uuid:[None]*NBDS_MAX})
+            sr_dev_instances["hosts"][host_uuid] = [None]*NBDS_MAX
+            sr_dev_instances["hosts"][host_uuid][0] = "reserved"
+            sr_dev_instances["hosts"][host_uuid][1] = vdi_uuid
+            first_free_instance = 1
+
+        dev = str(first_free_instance)
+
         if self.session.xenapi.VDI.get_sharable(vdi_ref):
             sharable="true"
         else:
@@ -738,10 +777,16 @@ class VDI:
                 "CEPH_POOL_NAME":self.sr.CEPH_POOL_NAME,
                 "NBDS_MAX":str(NBDS_MAX),
                 "CEPH_USER":self.sr.CEPH_USER,"sharable":sharable,
-                "dm":dm,
+                "dm":dm, "dev":dev,
                 "size":str(size)}
         self._call_plugin('map',args)
         self.session.xenapi.VDI.add_to_sm_config(vdi_ref, 'dm', dm)
+
+        self.session.xenapi.SR.remove_from_sm_config(self.sr.sr_ref, "dev_instances")
+        self.session.xenapi.SR.add_to_sm_config(self.sr.sr_ref, "dev_instances", json.dumps(sr_dev_instances))
+        if sm_config.has_key("dev_instance"):
+            self.session.xenapi.VDI.remove_from_sm_config(vdi_ref, "dev_instance")
+        self.session.xenapi.VDI.add_to_sm_config(vdi_ref, "dev_instance", str(first_free_instance))
 
     def _unmap_sxm_base(self, vdi_uuid, size):
         _vdi_name = "%s%s" % (VDI_PREFIX, vdi_uuid)
@@ -752,6 +797,9 @@ class VDI:
         dev_name = "%s/%s" % (self.sr.SR_ROOT, vdi_name)
 
         vdi_ref = self.session.xenapi.VDI.get_by_uuid(vdi_uuid)
+        sm_config = self.session.xenapi.VDI.get_sm_config(vdi_ref)
+        sr_sm_config = self.session.xenapi.SR.get_sm_config(self.sr.sr_ref)
+
         dm="base"
         if self.session.xenapi.VDI.get_sharable(vdi_ref):
             sharable="true"
@@ -771,6 +819,16 @@ class VDI:
                 "size":str(size)}
         self._call_plugin('unmap',args)
         self.session.xenapi.VDI.remove_from_sm_config(vdi_ref, 'dm')
+
+        sr_dev_instances = json.loads(sr_sm_config["dev_instances"])
+        self.session.xenapi.SR.remove_from_sm_config(self.sr.sr_ref, "dev_instances")
+        if sr_dev_instances["hosts"].has_key(host_uuid):
+            for i in range(NBDS_MAX):
+                if sr_dev_instances["hosts"][host_uuid][i] == vdi_uuid:
+                    sr_dev_instances["hosts"][host_uuid][i] = None
+                    break
+        self.session.xenapi.SR.add_to_sm_config(self.sr.sr_ref, "dev_instances", json.dumps(sr_dev_instances))
+        self.session.xenapi.VDI.remove_from_sm_config(vdi_ref, "dev_instance")
 
     def _merge_sxm_diffs(self, mirror_uuid, base_uuid, size):
         util.SMlog("Calling cephutills.VDI._merge_sxm_diffs: mirror_uuid=%s, base_uuid=%s, size=%s" % (mirror_uuid, base_uuid, size))
@@ -825,7 +883,7 @@ class VDI:
         self._unmap_VHD(mirror_uuid, self.size)
         self._unmap_sxm_base(base_uuid, size)
         #---
-        tmp_uuid = "temporary"  # util.gen_uuid()
+        tmp_uuid = "temporary-%s" % util.gen_uuid()
         self._rename_image(mirror_uuid, tmp_uuid)
         self._rename_image(base_uuid, mirror_uuid)
         self._rename_image(tmp_uuid, base_uuid)
