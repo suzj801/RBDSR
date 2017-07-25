@@ -117,8 +117,8 @@ def _unmap(session, arg_dict):
     vdi_name = arg_dict['vdi_name']
 
     dev = util.pread2(["realpath", _dev_name]).rstrip('\n')
-    if os.path.isfile(dev_name):
-        util.pread2(["unlink", _dev_name])
+    if os.path.exists(dev_name):
+        util.pread2(["unlink", dev_name])
     if dm == "linear":
         util.pread2(["dmsetup", "remove", _dm_name])
     elif dm == "mirror":
@@ -129,14 +129,14 @@ def _unmap(session, arg_dict):
         util.pread2(["dmsetup", "remove", _dm_name])
 
     if mode == "kernel":
-        if os.path.isfile(dev):
+        if os.path.exists(dev):
             util.pread2(["rbd", "unmap", dev])
     elif mode == "fuse":
         pass
     elif mode == "nbd":
-        if os.path.isfile(_dev_name):
+        if os.path.exists(_dev_name):
             util.pread2(["unlink", _dev_name])
-        if os.path.isfile(dev):
+        if os.path.exists(dev):
             util.pread2(["rbd-nbd", "unmap", dev])
     return "unmapped"
 
