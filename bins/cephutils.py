@@ -893,6 +893,7 @@ class VDI:
         #---
         self._map_VHD(mirror_uuid, size, "linear")
         #---
+        mirror_sm_config = self.session.xenapi.VDI.get_sm_config(mirror_vdi_ref)
         if "paused" in mirror_sm_config:
             if not blktap2.VDI.tap_unpause(self.session, self.sr.uuid, mirror_uuid, None):
                 raise util.SMException("failed to unpause VDI %s" % mirror_uuid)

@@ -343,17 +343,13 @@ class RBDVDI(VDI.VDI, cephutils.VDI):
                 self.sm_config_override["vdi_type"] = 'aio'
 
     def __init__(self, mysr, uuid):
-        self.uuid = uuid
-        self.location = uuid
         self.vdi_type = 'aio'
-        self.read_only = False
-        self.shareable = False
         self.issnap = False
         self.is_a_snapshot = False
         self.hidden = False
         self.sm_config = {}
-        self.sm_config_keep = ["dm", "compose", "base_mirror", "sxm_mirror", "attached", "compose_vdi1", "compose_vdi2"]
         VDI.VDI.__init__(self, mysr, uuid)
+        self.sm_config_keep = ["dm", "compose", "base_mirror", "sxm_mirror", "attached", "compose_vdi1", "compose_vdi2"]
 
     def create(self, sr_uuid, vdi_uuid, size):
         util.SMlog("RBDVDI.create: sr_uuid=%s, vdi_uuid=%s, size=%s" % (sr_uuid, vdi_uuid, size))
@@ -773,6 +769,8 @@ class RBDVDI(VDI.VDI, cephutils.VDI):
 
         self.session.xenapi.VDI.remove_from_sm_config(snap_vdi_ref, 'snapshot-of')
         self.session.xenapi.VDI.add_to_sm_config(snap_vdi_ref, 'snapshot-of', vdi1_uuid)
+        self._hide_image(vdi1_uuid)
+        self.sr.session.xenapi.VDI.set_managed(vdi1_ref, False)
 
         #blktap2.VDI.tap_unpause(self.session, sr_uuid, vdi2_uuid, None)
 
