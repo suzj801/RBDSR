@@ -856,16 +856,15 @@ class VDI:
         #    if not blktap2.VDI.tap_pause(self.session, self.sr.uuid, mirror_uuid):
         #        raise util.SMException("failed to pause VDI %s" % mirror_uuid)
         #---
-        util.SMlog("!!!!!!!!!!!!!!! mirror_sm_config:%s"%mirror_sm_config)
         if filter(lambda x: x.startswith('host_'), mirror_sm_config.keys()):
+            if not "paused" in mirror_sm_config:
+                if not blktap2.VDI.tap_pause(self.session, self.sr.uuid, mirror_uuid):
+                    raise util.SMException("failed to pause VDI %s" % mirror_uuid)
             for mirror_host_key in filter(lambda x: x.startswith('host_'), mirror_sm_config.keys()):
                 if filter(lambda x: x.startswith('host_'), base_sm_config.keys()):
                     for base_host_key in filter(lambda x: x.startswith('host_'), base_sm_config.keys()):
                         self.session.xenapi.VDI.remove_from_sm_config(base_vdi_ref, base_host_key)
                 self.session.xenapi.VDI.add_to_sm_config(base_vdi_ref, mirror_host_key, mirror_sm_config[mirror_host_key])
-            if not "paused" in mirror_sm_config:
-                if not blktap2.VDI.tap_pause(self.session, self.sr.uuid, mirror_uuid):
-                    raise util.SMException("failed to pause VDI %s" % mirror_uuid)
 
         self._unmap_sxm_mirror(mirror_uuid, size)
         self._map_sxm_base(base_uuid, self.size)

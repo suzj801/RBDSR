@@ -37,7 +37,7 @@ function backupFile {
   fi
 }
 
-# Usage: backupFile <path>
+# Usage: restoreFile <path>
 function restoreFile {
   echo "Backing Up file $1"
   if [ -e $1-orig ]; then
@@ -119,7 +119,7 @@ function install {
   installEpel
   installCeph
 
-  backupFile "/sbin/tap-ctl"
+  #backupFile "/sbin/tap-ctl"
   backupFile "/bin/vhd-tool"
   backupFile "/usr/libexec/xapi/sparse_dd"
 
@@ -131,7 +131,7 @@ function install {
 function deinstall {
   disableRBDSR
   removeFiles
-  restoreFile "/sbin/tap-ctl"
+  #restoreFile "/sbin/tap-ctl"
   restoreFile "/bin/vhd-tool"
   restoreFile "/usr/libexec/xapi/sparse_dd"
   deinstallRepo $1
