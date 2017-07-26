@@ -76,9 +76,9 @@ def _map(session, arg_dict):
     elif mode == "nbd":
         if sharable == "true":
             _disable_rbd_caching()
-            dev = util.pread2(["rbd-nbd", "--nbds_max", NBDS_MAX, "-c", "/etc/ceph/ceph.conf.nocaching", "map", "%s/%s" % (CEPH_POOL_NAME, _vdi_name)]).rstrip('\n')
+            dev = util.pread2(["rbd-nbd", "-c", "/etc/ceph/ceph.conf.nocaching", "map", "%s/%s" % (CEPH_POOL_NAME, _vdi_name)]).rstrip('\n')
         else:
-            dev = util.pread2(["rbd-nbd", "--nbds_max", NBDS_MAX, "map", "%s/%s" % (CEPH_POOL_NAME, _vdi_name)]).rstrip('\n')
+            dev = util.pread2(["rbd-nbd", "map", "%s/%s" % (CEPH_POOL_NAME, _vdi_name)]).rstrip('\n')
         util.pread2(["ln", "-fs", dev, _dev_name])
 
     if dm == "linear":

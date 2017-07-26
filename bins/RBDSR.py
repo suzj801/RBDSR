@@ -323,7 +323,7 @@ class RBDVDI(VDI.VDI, cephutils.VDI):
                 self.is_a_snapshot = True
                 self.read_only = True
                 self.sm_config_override["vdi_type"] = 'aio'
-                self.sm_config_override['snapshot-of'] = self.parent
+                self.sm_config['snapshot-of'] = self.parent
                 try:## FIX ME: parent may not in xapidb now
                     self.snapshot_of = self.session.xenapi.VDI.get_by_uuid(self.parent)
                 except:
@@ -352,6 +352,7 @@ class RBDVDI(VDI.VDI, cephutils.VDI):
         self.is_a_snapshot = False
         self.hidden = False
         self.sm_config = {}
+        self.sm_config_keep = ["dm", "compose", "base_mirror", "sxm_mirror", "attached", "compose_vdi1", "compose_vdi2"]
         VDI.VDI.__init__(self, mysr, uuid)
 
     def create(self, sr_uuid, vdi_uuid, size):
