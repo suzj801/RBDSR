@@ -29,6 +29,8 @@ import xml.dom.minidom
 import blktap2
 import vhdutil
 
+geneology = {}
+storedays = 1
 CAPABILITIES = ["VDI_CREATE", "VDI_DELETE", "VDI_ATTACH", "VDI_DETACH", "VDI_CLONE", "VDI_SNAPSHOT",
                 "VDI_INTRODUCE", "VDI_RESIZE", "VDI_RESIZE_ONLINE", "VDI_UPDATE", "VDI_MIRROR",
                 "VDI_RESET_ON_BOOT/2", "VDI_GENERATE_CONFIG", "ATOMIC_PAUSE",
@@ -182,7 +184,6 @@ class RBDSR(SR.SR, cephutils.SR):
 
         self.RBDVDIs = self._get_vdilist(self.CEPH_POOL_NAME)
 
-        allocated_bytes = 0
         vdi_uuids = self.RBDVDIs.keys()
         for vdi_uuid in vdi_uuids:
             if vdi_uuid in self.vdis:
@@ -193,16 +194,32 @@ class RBDSR(SR.SR, cephutils.SR):
                 if parent_vdi_uuid not in self.vdis:
                     if parent_vdi_uuid in vdi_uuids:
                         self.vdis[parent_vdi_uuid] = RBDVDI(self, parent_vdi_uuid)
-                        if not self.vdis[parent_vdi_uuid].hidden:
-                            allocated_bytes += self.vdis[parent_vdi_uuid].size
                     else:
                         #?? raise erorr or ignore snapshots
                         raise xs_errors.XenError('VDIUnavailable',
                                                  opterr="VDI %s's parent %s not found" % (vdi_uuid, parent_vdi_uuid))
             self.vdis[vdi_uuid] = RBDVDI(self, vdi_uuid)
-            if not self.vdis[vdi_uuid].hidden:
-                allocated_bytes += self.vdis[vdi_uuid].size
+
+        allocated_bytes = 0
+        for uuid, vdi in self.vdis.iteritems():
+            if vdi.parent:
+                if self.vdis.has_key(vdi.parent):
+                    self.vdis[vdi.parent].read_only = True
+                if geneology.has_key(vdi.parent):
+                    geneology[vdi.parent].append(uuid)
+                else:
+                    geneology[vdi.parent] = [uuid]
+            if not vdi.hidden:
+                allocated_bytes += vdi.size
         self.virtual_allocation = allocated_bytes
+
+        for uuid in self.vdis.keys():
+            if not geneology.has_key(uuid) and self.vdis[uuid].hidden:
+                util.SMlog("Scan found hidden leaf (%s), ignoring" % uuid)
+                if hasattr(self.vdis[uuid], "hidden_time") and \
+                   (datetime.now() - self.vdis[uuid].hidden_time).days >= storedays:
+                    self.vdis[uuid]._delete_vdi(uuid)
+                    del self.vdis[uuid]
 
     def content_type(self, sr_uuid):
         """Returns the content_type XML"""
@@ -340,6 +357,7 @@ class RBDVDI(VDI.VDI, cephutils.VDI):
                 if self.hidden:
                     self.read_only = True
                     self.managed = False
+                    self.hidden_time = datetime.strptime(vdi_meta.get("HIDDEN_TIME", "1970-01-01 00:00:00"), "%Y-%m-%d %H:%M:%S")
                 self.sm_config_override["vdi_type"] = 'aio'
 
     def __init__(self, mysr, uuid):

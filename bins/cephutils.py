@@ -24,6 +24,7 @@ import os
 import blktap2
 import XenAPI
 import inventory
+import datetime
 
 
 RBDPOOL_PREFIX = "RBD_XenStorage-"
@@ -38,7 +39,7 @@ RBD_PREFIX = "/dev/rbd"
 NBD_PREFIX = "/dev/nbd"
 DM_PREFIX = "/dev/mapper"
 
-NBDS_MAX = 200
+NBDS_MAX = 64
 BLOCK_SIZE = 21 #2097152 bytes
 OBJECT_SIZE_IN_B = 2097152
 
@@ -370,6 +371,7 @@ class VDI:
         util.SMlog("Calling cephutils.VDI._hide_image: vdi_uuid=%s" % vdi_uuid)
         vdi_name = "%s%s" % (VDI_PREFIX, vdi_uuid)
         util.pread2(["rbd", "image-meta", "set", vdi_name, "VDI_HIDDEN", "1", "--pool", self.sr.CEPH_POOL_NAME])
+        util.pread2(["rbd", "image-meta", "set", vdi_name, "HIDDEN_TIME", datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"), "--pool", self.sr.CEPH_POOL_NAME])
 
     def _do_clone(self, vdi_uuid, snap_uuid, clone_uuid, vdi_label):
         util.SMlog("Calling cephutils.VDI._do_clone: vdi_uuid=%s, snap_uuid=%s, clone_uuid=%s, vdi_label=%s" % (vdi_uuid, snap_uuid, clone_uuid, vdi_label))
