@@ -1,5 +1,5 @@
 #!/bin/bash
-DEFAULT_CEPH_VERSION="jewel"
+DEFAULT_CEPH_VERSION="kraken"
 CEPH_REPO="mirrors.163.com\/ceph"
 
 # Usage: installRepo <ceph-version>
@@ -84,7 +84,7 @@ function installFiles {
   copyFile "bins/RBDSR.py"              "/opt/xensource/sm/RBDSR"
   copyFile "bins/cephutils.py"          "/opt/xensource/sm/cephutils.py"
 
-  copyFile "bins/tap-ctl"              "/sbin/tap-ctl"
+  #copyFile "bins/tap-ctl"              "/sbin/tap-ctl"
   copyFile "bins/vhd-tool"             "/bin/vhd-tool"
   copyFile "bins/sparse_dd"            "/usr/libexec/xapi/sparse_dd"
 
@@ -102,7 +102,7 @@ function removeFiles {
   rm -f "/opt/xensource/sm/RBDSR"
   rm -f "/opt/xensource/sm/cephutils.py"
 
-  rm -f "/sbin/tap-ctl"
+  #rm -f "/sbin/tap-ctl"
   rm -f "/bin/vhd-tool"
   rm -f "/usr/libexec/xapi/sparse_dd"
 
