@@ -1,5 +1,5 @@
 #!/bin/bash
-DEFAULT_CEPH_VERSION="jewel"
+DEFAULT_CEPH_VERSION="luminous"
 CEPH_REPO="mirrors.163.com\/ceph"
 
 # Usage: installRepo <ceph-version>
@@ -53,6 +53,12 @@ function copyFile {
   chmod +x $2
 }
 
+function configFirewall {
+  iptables -I INPUT -p tcp --dport 6789 -j ACCEPT
+  iptables -I INPUT -m multiport -p tcp --dports 6800:7300 -j ACCEPT
+  service iptables save
+}
+
 function enableRBDSR {
   echo "Add RBDSR plugin to whitelist of SM plugins in /etc/xapi.conf"
   grep "sm-plugins" /etc/xapi.conf
@@ -74,7 +80,9 @@ function installEpel {
 
 function installCeph {
   echo "Install RBDSR depenencies"
-  yum install -y snappy leveldb gdisk python-argparse gperftools-libs fuse fuse-libs ceph-common rbd-fuse rbd-nbd --enablerepo=base,extras --releasever=7
+  yum install -y snappy leveldb gdisk python-argparse gperftools-libs fuse fuse-libs --enablerepo=base,extras --releasever=7
+  echo "Install Ceph"
+  yum install -y ceph-common rbd-fuse rbd-nbd --enablerepo=base,extras --releasever=7
 }
 
 function installFiles {
@@ -85,7 +93,7 @@ function installFiles {
   copyFile "bins/cephutils.py"          "/opt/xensource/sm/cephutils.py"
   copyFile "bins/rbdsr_lock.py"         "/opt/xensource/sm/rbdsr_lock.py"
 
-  #copyFile "bins/tap-ctl"              "/sbin/tap-ctl"
+  copyFile "bins/tap-ctl"              "/sbin/tap-ctl"
   copyFile "bins/vhd-tool"             "/bin/vhd-tool"
   copyFile "bins/sparse_dd"            "/usr/libexec/xapi/sparse_dd"
 
@@ -121,12 +129,12 @@ function install {
   installEpel
   installCeph
 
-  #backupFile "/sbin/tap-ctl"
+  backupFile "/sbin/tap-ctl"
   backupFile "/bin/vhd-tool"
   backupFile "/usr/libexec/xapi/sparse_dd"
 
   installFiles
-
+  configFirewall
   enableRBDSR
 }
 
